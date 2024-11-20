@@ -6,6 +6,8 @@ import message from "aws-sdk/lib/maintenance_mode_message.js";
 message.suppress = true;
 const s3 = new AWS.S3({});
 
+const name = "scott";
+
 const scrape = async (url) => {
   try {
     puppeteerExtra.use(stealthPlugin());
@@ -32,21 +34,37 @@ const scrape = async (url) => {
     // EVALUATE PAGE AND BUILD DATA OBJECT ---------------------------
     console.log("Evaluating DOM...");
     const evaluatePage = await page.evaluate(() => {
-      const pageHeadlines = Array.from(
-        document.querySelectorAll(".miniCardCarousel__slide")
-      );
-      const storyData = pageHeadlines.map((item) => ({
-        title: item.querySelector(
-          ".contentItem__content .contentItem__contentWrapper .contentItem__titleWrapper h2"
-        ).innerText,
-        pic: item
-          .querySelector(".contentItem__content .media-wrapper_image img")
-          .getAttribute("data-default-src"),
-        // link: item
-        //   .querySelector(".contentItem__content a")
-        //   .getAttribute("href"),
+      const scoreLinks = Array.from(document.querySelectorAll(".cscore_link"));
+      const boxScores = scoreLinks.map((item) => ({
+        //
+        // AWAY TEAM ---------------------------------
+        away: {
+          awayTeam: item.querySelector(
+            ".cscore_item--away .cscore_name--short "
+          ).innerText,
+          awayLogo: item
+            .querySelector(".cscore_item--away .cscore_logo img")
+            .getAttribute("src"),
+          awayScore: item.querySelector(
+            ".cscore_item--away .cscore_team .cscore_score"
+          ).innerText,
+        },
+
+        //
+        // HOME TEAM ----------------------------------
+        home: {
+          homeTeam: item.querySelector(
+            ".cscore_item--home .cscore_name--short "
+          ).innerText,
+          homeLogo: item
+            .querySelector(".cscore_item--home .cscore_logo img")
+            .getAttribute("src"),
+          homeScore: item.querySelector(
+            ".cscore_item--home .cscore_team .cscore_score"
+          ).innerText,
+        },
       }));
-      return storyData;
+      return boxScores;
     });
     await browser.close();
     const pages = await browser.pages();
@@ -67,7 +85,7 @@ export const handler = async (event, context) => {
 
   // PARAMS OBJECT to target bucket, set object key/name and payload
   const params = {
-    Bucket: "nflscrapingbucket/headlines",
+    Bucket: "nflscrapingbucket/boxScores",
     Key: `${timeStamp}.txt`,
     Body: JSON.stringify(data),
   };
